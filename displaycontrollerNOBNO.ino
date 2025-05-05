@@ -51,7 +51,8 @@
 #define SEALEVELPRESSURE_HPA (1013.25)  // Standard sea level pressure in hPa
 #define DISPLAY_UPDATE_RATE 10          // Display update rate in Hz
 #define MAX_ALTITUDE_GRAPH 1000         // Maximum altitude for graph in meters
-#define MAX_ACCEL_GRAPH 50              // Maximum acceleration for graph in m/s²
+#define MAX_ACCEL_GRAPH 50   // Maximum acceleration for graph in m/s²
+#define MAX_VELO_GRAPH 343 
 
 // Create TFT display instance - using hardware SPI
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
@@ -96,8 +97,9 @@ unsigned long debounceDelay = 50;
 #define GRAPH_HEIGHT 40
 #define GRAPH_WIDTH 100
 #define GRAPH_X 200
-#define ALTITUDE_GRAPH_Y 40
-#define ACCEL_GRAPH_Y 150
+#define ALTITUDE_GRAPH_Y 60
+#define VELO_GRAPH_Y 120
+#define ACCEL_GRAPH_Y 180
 #define DATA_X 10
 #define DATA_Y_START 40
 #define DATA_Y_SPACING 20
@@ -112,6 +114,10 @@ int altitudeHistoryIndex = 0;
 float accelHistory[ACCEL_HISTORY_SIZE];
 int accelHistoryIndex = 0;
 
+#define VELO_HISTORY_SIZE 100
+float veloHistory[VELO_HISTORY_SIZE];
+int veloHistoryIndex = 0;
+
 // Function prototypes
 bool initializeSensors();
 void initializeDisplay();
@@ -120,6 +126,7 @@ void updateDisplay();
 void drawHeader();
 void drawData();
 void drawAltitudeGraph();
+void drawVeloGraph();
 void drawAccelerationGraph();
 void checkZeroButton();
 void zeroSensors();
@@ -181,6 +188,9 @@ void setup() {
 
   for (int i = 0; i < ACCEL_HISTORY_SIZE; i++) {
     accelHistory[i] = 0;
+  }
+    for (int i = 0; i < VELO_HISTORY_SIZE; i++) {
+    veloHistory[i] = 0;
   }
 
   Serial.println("Initialization complete. Display ready.");
@@ -330,6 +340,7 @@ void updateDisplay() {
   drawHeader();
   drawData();
   drawAltitudeGraph();
+  drawVeloGraph();
   drawAccelerationGraph();
 
 }
@@ -391,7 +402,7 @@ void drawData() {
   tft.print(maxAcceleration, 1);
   tft.println("");
   tft.setTextSize(1);  // Reset text size
-//Display baroVelo and maxBaroVelo
+//Display baro and maxBaro
   tft.setCursor(DATA_X, DATA_Y_START + 4 * DATA_Y_SPACING + 10);  // Extra spacing for the larger text above
   tft.setTextColor(ILI9341_WHITE);
   tft.print("Velocity: ");
@@ -400,7 +411,8 @@ void drawData() {
     prevTime = Time;
   Time = millis() / 1000.000000f;
   baroVelo = (altitude-prevAlt)/(Time-prevTime);
-
+veloHistory[veloHistoryIndex] = baroVelo;
+    veloHistoryIndex = (veloHistoryIndex + 1) % VELO_HISTORY_SIZE;
 
   tft.print(baroVelo, 1);
   tft.println(" m/s");
@@ -471,6 +483,40 @@ void drawAltitudeGraph() {
     y2 = constrain(y2, ALTITUDE_GRAPH_Y + 1, ALTITUDE_GRAPH_Y + GRAPH_HEIGHT - 1);
 
     tft.drawLine(x1, y1, x2, y2, ILI9341_GREEN);
+  }
+
+ 
+}
+void drawVeloGraph() {
+  // Draw altitude graph frame
+  tft.drawRect(GRAPH_X, VELO_GRAPH_Y, GRAPH_WIDTH, GRAPH_HEIGHT, ILI9341_WHITE);
+
+  // Draw graph title
+  tft.setCursor(GRAPH_X, VELO_GRAPH_Y - 10);
+  tft.setTextColor(ILI9341_CYAN);
+  tft.setTextSize(1);
+  tft.print("Velocity (m/s)");
+
+  // Clear graph area
+  tft.fillRect(GRAPH_X + 1, VELO_GRAPH_Y + 1, GRAPH_WIDTH - 2, GRAPH_HEIGHT - 2, ILI9341_BLACK);
+
+  // Draw altitude graph
+  for (int i = 0; i < VELO_HISTORY_SIZE - 1; i++) {
+    int x1 = GRAPH_X + i * (GRAPH_WIDTH - 2) / VELO_HISTORY_SIZE + 1;
+    int x2 = GRAPH_X + (i + 1) * (GRAPH_WIDTH - 2) / VELO_HISTORY_SIZE + 1;
+
+    int idx1 = (veloHistoryIndex + i) % VELO_HISTORY_SIZE;
+    int idx2 = (veloHistoryIndex + i + 1) % VELO_HISTORY_SIZE;
+
+    int y1 = VELO_GRAPH_Y + GRAPH_HEIGHT - 1 - (veloHistory[idx1] * (GRAPH_HEIGHT - 2) / MAX_VELO_GRAPH);
+    int y2 = VELO_GRAPH_Y + GRAPH_HEIGHT - 1 - (veloHistory[idx2] * (GRAPH_HEIGHT - 2) / MAX_VELO_GRAPH);
+
+    // Constrain y values to graph area
+    y1 = constrain(y1, VELO_GRAPH_Y + 1, VELO_GRAPH_Y + GRAPH_HEIGHT - 1);
+    y2 = constrain(y2, VELO_GRAPH_Y + 1, VELO_GRAPH_Y + GRAPH_HEIGHT - 1);
+
+    tft.drawLine(x1, y1, x2, y2, ILI9341_CYAN);
+
   }
 
   // Redraw bitmap if it was loaded (to ensure it stays visible)
@@ -589,6 +635,9 @@ void zeroSensors() {
 
   for (int i = 0; i < ACCEL_HISTORY_SIZE; i++) {
     accelHistory[i] = 0;
+  }
+  for (int i = 0; i < VELO_HISTORY_SIZE; i++) {
+    veloHistory[i] = 0;
   }
 
   // Clear zeroing message after a delay
