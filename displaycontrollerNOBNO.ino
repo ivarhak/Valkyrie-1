@@ -39,6 +39,7 @@
 #define TFT_MISO MISO  // Hardware SPI MISO pin
 #define TFT_LITE 27    // Backlight pin
 #define SD_CS 15       // SD card CS pin
+#define VBATPIN A13
 
 // Pin definition for zero button
 #define ZERO_BUTTON_PIN 32  // Reset button
@@ -72,6 +73,8 @@ int maxAltitude = 0;        // Maximum relative altitude
 float maxAcceleration = 0;    // Maximum acceleration
 float maxBaroVelo = 0;
 float baroVelo = 0;
+double measuredvbat = 0.0;
+double finalvbat = 0.0;
 // Reference values for accelerometer zeroing
 float accel_ref_x = 0;
 float accel_ref_y = 0;
@@ -209,7 +212,7 @@ void loop() {
   // Check if it's time to update the display
   if (currentMillis - previousMillis >= displayInterval) {
     previousMillis = currentMillis;
-
+batteryCheck();
     // Read data from all sensors
     readSensors();
 
@@ -285,7 +288,12 @@ void initializeDisplay() {
  
   Serial.println("Display initialized");
 }
-
+  void batteryCheck(){
+measuredvbat = analogReadMilliVolts(VBATPIN);
+measuredvbat=  measuredvbat * 2;    // we divided by 2, so multiply back
+measuredvbat= measuredvbat/1000; // convert to volts!
+    finalvbat= measuredvbat;
+}
 void readSensors() {
  
 
@@ -352,7 +360,13 @@ void drawHeader() {
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
   tft.print("VALKYRIE ONE");
+  tft.setCursor(240,10);
+  tft.print(finalvbat);
+  tft.setCursor(290,20);
+  tft.setTextSize(1);
+  tft.print("Volts");
 }
+
 
 void drawData() {
   // Clear data area
