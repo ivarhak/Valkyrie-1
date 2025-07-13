@@ -8,6 +8,7 @@
 #define SEALEVELPRESSURE_HPA (1013.25)
 #define BUTTON_PIN 32
 #define SD_CS_PIN 5  // CS pin for microSD on Adalogger Feather RP2040
+#define LED_PIN 13  // Onboard LED on Feather RP2040
 
 Adafruit_BMP3XX bmp;
 Adafruit_ADXL375 accel = Adafruit_ADXL375(12345);
@@ -26,7 +27,9 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
   Wire.begin();
-
+  
+pinMode(LED_PIN, OUTPUT);
+  
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   // Initialize BMP390
@@ -103,6 +106,7 @@ void loop() {
 
   // Log data
   if (dataFile) {
+    digitalWrite(LED_PIN, HIGH); 
     dataFile.print(currentTime - startTime);
     dataFile.print(",");
     dataFile.print(altitudeZeroed, 2);
@@ -122,6 +126,7 @@ void loop() {
     dataFile.print(velocity, 2);
     dataFile.println(",");
     dataFile.flush();
+     digitalWrite(LED_PIN, LOW);
   }
 
   prevAltitude = altitude;
@@ -141,6 +146,7 @@ void zeroSensors(float p, float alt, float ax, float ay, float az) {
 }
 
 void logEvent(String message) {
+  digitalWrite(LED_PIN, HIGH);  // Turn on LED
   if (dataFile) {
     unsigned long t = millis() - startTime;
     dataFile.print(t);
@@ -149,4 +155,5 @@ void logEvent(String message) {
     dataFile.flush();
   }
   Serial.println(message);
+   digitalWrite(LED_PIN, LOW);   // Turn off LED
 }
